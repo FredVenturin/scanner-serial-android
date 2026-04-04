@@ -7,7 +7,7 @@ const exportRoute = require('./routes/export');
 const emailRoute = require('./routes/email');
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: false }));
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/scan', scanRoute);
