@@ -6,6 +6,11 @@ jest.mock('../services/claude', () => ({
   identifySerial: jest.fn().mockResolvedValue('SN-00X7482K'),
 }));
 
+jest.mock('../services/mailer', () => ({
+  sendAsText: jest.fn().mockResolvedValue(undefined),
+  sendWithAttachment: jest.fn().mockResolvedValue(undefined),
+}));
+
 const request = require('supertest');
 const app = require('../index');
 
