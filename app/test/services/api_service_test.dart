@@ -75,4 +75,29 @@ void main() {
       );
     });
   });
+
+  group('ApiService.exportFile', () {
+    test('retorna bytes quando backend responde 200', () async {
+      final mockClient = MockClient();
+      final fakeBytes = [80, 68, 70]; // "PDF" em bytes
+      when(mockClient.post(
+        any,
+        headers: anyNamed('headers'),
+        body: anyNamed('body'),
+      )).thenAnswer((_) async => http.Response.bytes(
+            fakeBytes,
+            200,
+            headers: {'content-type': 'application/pdf'},
+          ));
+
+      final service = ApiService(
+        baseUrl: 'http://localhost:3000',
+        client: mockClient,
+      );
+      final serials = [SerialItem(serial: 'SN-123')];
+      final result = await service.exportFile('pdf', serials);
+
+      expect(result, fakeBytes);
+    });
+  });
 }
