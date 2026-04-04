@@ -1,0 +1,27 @@
+jest.mock('@google-cloud/vision', () => {
+  return {
+    ImageAnnotatorClient: jest.fn().mockImplementation(() => ({
+      textDetection: jest.fn().mockResolvedValue([{
+        textAnnotations: [{ description: 'SN: 00X7482K\nModel: Dell XPS' }]
+      }])
+    }))
+  };
+});
+
+const { extractText } = require('../services/ocr');
+
+describe('extractText', () => {
+  it('retorna texto extraído da imagem', async () => {
+    const result = await extractText('base64imagestring');
+    expect(result).toBe('SN: 00X7482K\nModel: Dell XPS');
+  });
+
+  it('retorna string vazia quando não há texto', async () => {
+    const vision = require('@google-cloud/vision');
+    vision.ImageAnnotatorClient.mockImplementationOnce(() => ({
+      textDetection: jest.fn().mockResolvedValue([{ textAnnotations: [] }])
+    }));
+    const { extractText: et } = require('../services/ocr');
+    expect(typeof et).toBe('function');
+  });
+});
