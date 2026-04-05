@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../models/serial_item.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 import 'confirm_screen.dart';
 import 'list_screen.dart';
 
@@ -29,6 +30,8 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _flashOn = false;
   late List<SerialItem> _sessionList;
   late ApiService _apiService;
+  final StorageService _storageService = StorageService();
+  String _sessionName = '';
 
   @override
   void initState() {
@@ -36,6 +39,17 @@ class _CameraScreenState extends State<CameraScreen> {
     _sessionList = List.from(widget.sessionList);
     _apiService = ApiService(baseUrl: dotenv.env['BACKEND_URL']!);
     _initCamera();
+    _loadPersistedSession();
+  }
+
+  Future<void> _loadPersistedSession() async {
+    final session = await _storageService.loadSession();
+    if (session != null && mounted) {
+      setState(() {
+        _sessionList = session.items;
+        _sessionName = session.name;
+      });
+    }
   }
 
   Future<void> _initCamera() async {
@@ -101,6 +115,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
       if (updatedList != null) {
         setState(() => _sessionList = updatedList);
+        _storageService.saveSession(_sessionName, _sessionList);
       }
     } catch (e) {
       if (!mounted) return;
@@ -119,7 +134,13 @@ class _CameraScreenState extends State<CameraScreen> {
         builder: (_) => ListScreen(
           sessionList: _sessionList,
           apiService: _apiService,
-          onListUpdated: (list) => setState(() => _sessionList = list),
+          sessionName: _sessionName,
+          onListUpdated: (list, name) {
+            setState(() {
+              _sessionList = list;
+              _sessionName = name;
+            });
+          },
         ),
       ),
     );

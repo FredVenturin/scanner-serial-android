@@ -4,16 +4,19 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/serial_item.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 
 class ListScreen extends StatefulWidget {
   final List<SerialItem> sessionList;
   final ApiService apiService;
-  final void Function(List<SerialItem>) onListUpdated;
+  final String sessionName;
+  final void Function(List<SerialItem> list, String name) onListUpdated;
 
   const ListScreen({
     super.key,
     required this.sessionList,
     required this.apiService,
+    required this.sessionName,
     required this.onListUpdated,
   });
 
@@ -23,17 +26,70 @@ class ListScreen extends StatefulWidget {
 
 class _ListScreenState extends State<ListScreen> {
   late List<SerialItem> _list;
+  late TextEditingController _nameController;
+  final StorageService _storageService = StorageService();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _list = List.from(widget.sessionList);
+    final now = DateTime.now();
+    final defaultName = 'Lista ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    _nameController = TextEditingController(
+      text: widget.sessionName.isEmpty ? defaultName : widget.sessionName,
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _persist() {
+    widget.onListUpdated(_list, _nameController.text);
+    _storageService.saveSession(_nameController.text, _list);
   }
 
   void _removeItem(int index) {
     setState(() => _list.removeAt(index));
-    widget.onListUpdated(_list);
+    _persist();
+  }
+
+  Future<void> _newList() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nova lista'),
+        content: const Text('Tem certeza? A lista atual será apagada.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Apagar e criar nova'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    await _storageService.clearSession();
+    if (!mounted) return;
+    final now = DateTime.now();
+    setState(() {
+      _list.clear();
+      _nameController.text = 'Lista ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    });
+    _persist();
   }
 
   void _copyAll() {
@@ -50,7 +106,9 @@ class _ListScreenState extends State<ListScreen> {
     try {
       final bytes = await widget.apiService.exportFile(format, _list);
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/seriais.$format');
+      final safeName = _nameController.text.replaceAll(RegExp(r'[^\w\s\-]'), '').trim();
+      final fileName = safeName.isEmpty ? 'seriais' : safeName;
+      final file = File('${dir.path}/$fileName.$format');
       await file.writeAsBytes(bytes);
 
       if (!mounted) return;
@@ -242,6 +300,33 @@ class _ListScreenState extends State<ListScreen> {
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)))
           : Column(
               children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  color: Colors.white,
+                  child: TextField(
+                    controller: _nameController,
+                    onChanged: (_) => _persist(),
+                    decoration: InputDecoration(
+                      labelText: 'Nome da sessão',
+                      hintText: 'Ex: Sala 3 - 05/04',
+                      filled: true,
+                      fillColor: const Color(0xFFF5F7FA),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.delete_sweep, color: Colors.red),
+                        tooltip: 'Nova lista',
+                        onPressed: _newList,
+                      ),
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: _list.isEmpty
                       ? const Center(
