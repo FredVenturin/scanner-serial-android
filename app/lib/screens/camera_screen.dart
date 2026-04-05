@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import '../models/serial_item.dart';
 import '../services/api_service.dart';
 import 'confirm_screen.dart';
@@ -40,7 +41,7 @@ class _CameraScreenState extends State<CameraScreen> {
     if (widget.cameras.isEmpty) return;
     _controller = CameraController(
       widget.cameras.first,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
     );
     try {
       await _controller.initialize();
@@ -67,7 +68,12 @@ class _CameraScreenState extends State<CameraScreen> {
     try {
       final image = await _controller.takePicture();
       final bytes = await image.readAsBytes();
-      final base64Image = base64Encode(bytes);
+      final compressed = await FlutterImageCompress.compressWithList(
+        bytes,
+        quality: 70,
+        format: CompressFormat.jpeg,
+      );
+      final base64Image = base64Encode(compressed);
 
       final result = await _apiService.scanImage(base64Image);
 
