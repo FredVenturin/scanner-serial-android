@@ -40,7 +40,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     super.dispose();
   }
 
-  void _addToList() {
+  Future<void> _addToList() async {
     final serial = _serialController.text.trim();
     if (serial.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -49,6 +49,35 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
         ),
       );
       return;
+    }
+
+    final isDuplicate = widget.sessionList.any(
+      (item) => item.serial.trim().toLowerCase() == serial.toLowerCase(),
+    );
+
+    if (isDuplicate) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Série duplicada'),
+          content: Text('O serial "$serial" já está na lista. Deseja adicionar mesmo assim?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Não'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Sim, adicionar'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
     }
 
     final note = _noteController.text.trim();
