@@ -37,14 +37,11 @@ class _ListScreenState extends State<ListScreen> {
   }
 
   void _copyAll() {
-    final text = _list.asMap().entries.map((e) {
-      final note = e.value.note != null ? ' — ${e.value.note}' : '';
-      return '${e.key + 1}. ${e.value.serial}$note';
-    }).join('\n');
+    final text = _list.map((e) => e.serial).join('\n');
 
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Lista copiada para a área de transferência!')),
+      const SnackBar(content: Text('Seriais copiados para a área de transferência!')),
     );
   }
 
