@@ -78,6 +78,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
         ),
       );
       if (confirmed != true) return;
+      if (!mounted) return;
     }
 
     final note = _noteController.text.trim();
