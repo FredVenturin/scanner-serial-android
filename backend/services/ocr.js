@@ -1,5 +1,11 @@
 const vision = require('@google-cloud/vision');
-const client = new vision.ImageAnnotatorClient();
+
+let clientOptions = {};
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+  const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+  clientOptions = { credentials };
+}
+const client = new vision.ImageAnnotatorClient(clientOptions);
 
 async function extractText(base64Image) {
   const [result] = await client.textDetection({
