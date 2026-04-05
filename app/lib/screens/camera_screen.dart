@@ -26,6 +26,7 @@ class _CameraScreenState extends State<CameraScreen> {
   late CameraController _controller;
   bool _isProcessing = false;
   bool _cameraInitialized = false;
+  bool _flashOn = false;
   late List<SerialItem> _sessionList;
   late ApiService _apiService;
 
@@ -53,6 +54,13 @@ class _CameraScreenState extends State<CameraScreen> {
         );
       }
     }
+  }
+
+  Future<void> _toggleFlash() async {
+    if (!_cameraInitialized) return;
+    _flashOn = !_flashOn;
+    await _controller.setFlashMode(_flashOn ? FlashMode.torch : FlashMode.off);
+    setState(() {});
   }
 
   @override
@@ -128,6 +136,13 @@ class _CameraScreenState extends State<CameraScreen> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _flashOn ? Icons.flash_on : Icons.flash_off,
+              color: Colors.white,
+            ),
+            onPressed: _toggleFlash,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
