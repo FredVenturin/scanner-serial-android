@@ -26,5 +26,27 @@ void main() {
       final item = SerialItem(serial: 'SN-000');
       expect(item.toMap()['note'], isNull);
     });
+
+    test('fromMap cria item com serial e note', () {
+      final map = {'serial': 'SN-100', 'note': 'Impressora', 'capturedAt': '2026-04-05T10:00:00.000'};
+      final item = SerialItem.fromMap(map);
+      expect(item.serial, 'SN-100');
+      expect(item.note, 'Impressora');
+      expect(item.capturedAt, DateTime.parse('2026-04-05T10:00:00.000'));
+    });
+
+    test('fromMap com note nulo', () {
+      final map = {'serial': 'SN-200', 'capturedAt': '2026-04-05T10:00:00.000'};
+      final item = SerialItem.fromMap(map);
+      expect(item.serial, 'SN-200');
+      expect(item.note, isNull);
+    });
+
+    test('toFullMap inclui capturedAt para persistencia', () {
+      final item = SerialItem(serial: 'SN-300', capturedAt: DateTime.parse('2026-04-05T12:00:00.000'));
+      final map = item.toFullMap();
+      expect(map['serial'], 'SN-300');
+      expect(map['capturedAt'], '2026-04-05T12:00:00.000');
+    });
   });
 }
