@@ -1,5 +1,14 @@
-const { Resend } = require('resend');
-const resend = new Resend(process.env.RESEND_API_KEY);
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 async function sendAsText(to, serials) {
   const lines = serials.map((item, i) => {
@@ -7,8 +16,8 @@ async function sendAsText(to, serials) {
     return `${i + 1}. ${item.serial}${note}`;
   });
 
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
+  await transporter.sendMail({
+    from: process.env.SMTP_USER,
     to,
     subject: 'Lista de Seriais — Scanner',
     text: `Seriais escaneados:\n\n${lines.join('\n')}\n\nTotal: ${serials.length} serial(is)\nEnviado via Scanner de Série`,
@@ -16,15 +25,16 @@ async function sendAsText(to, serials) {
 }
 
 async function sendWithAttachment(to, buffer, format, ext, mime) {
-  await resend.emails.send({
-    from: process.env.EMAIL_FROM,
+  await transporter.sendMail({
+    from: process.env.SMTP_USER,
     to,
     subject: 'Lista de Seriais — Scanner',
     html: '<p>Segue em anexo a lista de seriais escaneados.</p>',
     attachments: [
       {
         filename: `seriais.${ext}`,
-        content: buffer.toString('base64'),
+        content: buffer,
+        contentType: mime,
       },
     ],
   });
