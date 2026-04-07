@@ -3,20 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import '../models/serial_item.dart';
+import '../models/batch.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import 'confirm_screen.dart';
-import 'list_screen.dart';
+import 'batch_list_screen.dart';
 
 class CameraScreen extends StatefulWidget {
   final List<CameraDescription> cameras;
-  final List<SerialItem> sessionList;
 
   const CameraScreen({
     super.key,
     required this.cameras,
-    required this.sessionList,
   });
 
   @override
@@ -28,26 +26,26 @@ class _CameraScreenState extends State<CameraScreen> {
   bool _isProcessing = false;
   bool _cameraInitialized = false;
   bool _flashOn = false;
-  late List<SerialItem> _sessionList;
+  List<Batch> _batches = [];
+  String? _lastBatchId;
   late ApiService _apiService;
   final StorageService _storageService = StorageService();
-  String _sessionName = '';
 
   @override
   void initState() {
     super.initState();
-    _sessionList = List.from(widget.sessionList);
     _apiService = ApiService(baseUrl: dotenv.env['BACKEND_URL']!);
     _initCamera();
-    _loadPersistedSession();
+    _loadPersistedData();
   }
 
-  Future<void> _loadPersistedSession() async {
-    final session = await _storageService.loadSession();
-    if (session != null && mounted) {
+  Future<void> _loadPersistedData() async {
+    final batches = await _storageService.loadBatches();
+    final lastId = await _storageService.loadLastBatchId();
+    if (mounted) {
       setState(() {
-        _sessionList = session.items;
-        _sessionName = session.name;
+        _batches = batches;
+        _lastBatchId = lastId;
       });
     }
   }
@@ -64,7 +62,9 @@ class _CameraScreenState extends State<CameraScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar câmera: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Erro ao iniciar câmera: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -101,21 +101,23 @@ class _CameraScreenState extends State<CameraScreen> {
 
       if (!mounted) return;
 
-      final updatedList = await Navigator.push<List<SerialItem>>(
+      final updatedBatches = await Navigator.push<List<Batch>>(
         context,
         MaterialPageRoute(
           builder: (_) => ConfirmScreen(
             serial: result['serial'] as String,
             confidence: result['confidence'] as String,
-            sessionList: _sessionList,
-            apiService: _apiService,
+            batches: _batches,
+            lastBatchId: _lastBatchId,
           ),
         ),
       );
 
-      if (updatedList != null) {
-        setState(() => _sessionList = updatedList);
-        _storageService.saveSession(_sessionName, _sessionList);
+      if (updatedBatches != null && mounted) {
+        setState(() => _batches = updatedBatches);
+        await _storageService.saveBatches(_batches);
+        final lastId = await _storageService.loadLastBatchId();
+        if (mounted) setState(() => _lastBatchId = lastId);
       }
     } catch (e) {
       if (!mounted) return;
@@ -127,24 +129,24 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  void _openList() {
+  void _openBatchList() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ListScreen(
-          sessionList: _sessionList,
+        builder: (_) => BatchListScreen(
+          batches: _batches,
           apiService: _apiService,
-          sessionName: _sessionName,
-          onListUpdated: (list, name) {
-            setState(() {
-              _sessionList = list;
-              _sessionName = name;
-            });
+          onBatchesUpdated: (batches) {
+            setState(() => _batches = batches);
+            _storageService.saveBatches(batches);
           },
         ),
       ),
     );
   }
+
+  int get _totalSerials =>
+      _batches.fold(0, (sum, b) => sum + b.items.length);
 
   @override
   Widget build(BuildContext context) {
@@ -167,11 +169,11 @@ class _CameraScreenState extends State<CameraScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: GestureDetector(
-              onTap: _openList,
+              onTap: _openBatchList,
               child: Chip(
                 label: Text(
-                  'Lista: ${_sessionList.length}',
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  'Lotes: ${_batches.length} | Séries: $_totalSerials',
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
                 ),
                 backgroundColor: Colors.white24,
               ),
@@ -207,18 +209,21 @@ class _CameraScreenState extends State<CameraScreen> {
                         child: Text(
                           'Aponte para a etiqueta do equipamento',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                          style:
+                              TextStyle(color: Colors.white70, fontSize: 13),
                         ),
                       ),
                     ],
                   )
                 : const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF4F46E5)),
                   ),
           ),
           Container(
             color: Colors.black87,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -234,7 +239,8 @@ class _CameraScreenState extends State<CameraScreen> {
                           ),
                         )
                       : const Icon(Icons.camera_alt),
-                  label: Text(_isProcessing ? 'Processando...' : 'Fotografar'),
+                  label: Text(
+                      _isProcessing ? 'Processando...' : 'Fotografar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
@@ -246,7 +252,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
-                  onPressed: _openList,
+                  onPressed: _openBatchList,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF4F46E5),
                     side: const BorderSide(color: Color(0xFF4F46E5)),
@@ -255,7 +261,7 @@ class _CameraScreenState extends State<CameraScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Ver lista →'),
+                  child: const Text('Ver lotes →'),
                 ),
               ],
             ),

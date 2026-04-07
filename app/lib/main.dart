@@ -23,7 +23,7 @@ class ScannerApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
         useMaterial3: true,
       ),
-      home: CameraScreen(cameras: cameras, sessionList: const []),
+      home: CameraScreen(cameras: cameras),
     );
   }
 }
