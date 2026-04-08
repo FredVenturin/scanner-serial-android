@@ -145,9 +145,6 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  int get _totalSerials =>
-      _batches.fold(0, (sum, b) => sum + b.items.length);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -165,19 +162,6 @@ class _CameraScreenState extends State<CameraScreen> {
               color: Colors.white,
             ),
             onPressed: _toggleFlash,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: _openBatchList,
-              child: Chip(
-                label: Text(
-                  'Lotes: ${_batches.length} | Séries: $_totalSerials',
-                  style: const TextStyle(color: Colors.white, fontSize: 11),
-                ),
-                backgroundColor: Colors.white24,
-              ),
-            ),
           ),
         ],
       ),
